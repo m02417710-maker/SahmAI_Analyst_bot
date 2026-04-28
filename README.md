@@ -1,3 +1,4 @@
+pip install streamlit yfinance pandas plotly google-generativeai pandas_ta
 import streamlit as st
 import yfinance as yf
 import pandas as pd
