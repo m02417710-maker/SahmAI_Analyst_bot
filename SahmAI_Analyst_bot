@@ -1,0 +1,3 @@
+# استبدل هذه القيم بالمعلومات التي حصلت عليها
+TELEGRAM_TOKEN = "123456789:ABCDefghIJKLmnop..."
+TELEGRAM_CHAT_ID = "987654321"
