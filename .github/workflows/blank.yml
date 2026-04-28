@@ -1,11 +1,11 @@
-import streamlit as st
-import yfinance as yf
-import pandas as pd
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
-import google.generativeai as genai
-import pandas_ta as ta
 
+|----------------------|------------------------------------|
+| **Streamlit**        | واجهة الويب التفاعلية            |
+| **yfinance**         | جلب البيانات الحية                |
+| **pandas_ta**        | حساب المؤشرات الفنية              |
+| **Google Gemini**    | التحليل الذكي والردود بالعربية   |
+| **Plotly**           | رسوم بيانية عالية الجودة          |
+| **Pandas**           | معالجة البيانات                    |
 # ====================== إعداد الصفحة ======================
 st.set_page_config(
     page_title="Stock AI Analyst 📈",
