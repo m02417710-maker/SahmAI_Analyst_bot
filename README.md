@@ -282,6 +282,3 @@ cd stock-ai-analyst
 
 # تثبيت المكتبات
 pip install -r requirements.txt
-
-# تشغيل التطبيق
-streamlit run app.py
