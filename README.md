@@ -271,14 +271,3 @@ if compare_mode and ticker2:
 | **Google Gemini**    | التحليل الذكي والردود بالعربية   |
 | **Plotly**           | رسوم بيانية عالية الجودة          |
 | **Pandas**           | معالجة البيانات                    |
-
----
-
-## 🚀 كيفية التشغيل محلياً
-
-```bash
-git clone https://github.com/اسم_مستخدمك/stock-ai-analyst.git
-cd stock-ai-analyst
-
-# تثبيت المكتبات
-pip install -r requirements.txt
