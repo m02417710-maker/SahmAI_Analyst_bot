@@ -187,3 +187,24 @@ else:
             st.error(f"خطأ: {e}")
 
 st.caption("⚠️ البيانات من yfinance • التحليل بـ Google Gemini • للأغراض التعليمية فقط")
+# 1. أولاً: نجهز النص (الـ prompt)
+prompt_text = f"""
+بصفتك محلل مالي، حلل سهم {ticker}. 
+السعر الحالي: {curr_price}. 
+أعطني تحليل فني سريع ونقاط الدعم والمقاومة بالعربية.
+"""
+
+# 2. ثانياً: نستخدمه داخل الزر
+if st.button("🚀 اطلب التحليل الفني"):
+    with st.spinner("جاري التفكير..."):
+        try:
+            # نمرر المتغير الذي أنشأناه (prompt_text) للموديل
+            response = model.generate_content(prompt_text) 
+            
+            st.markdown("### 📝 تقرير الخبير:")
+            st.success(response.text)
+            
+            # حفظ النتيجة لإرسالها لتلجرام لاحقاً
+            st.session_state['last_response'] = response.text
+        except Exception as e:
+            st.error(f"خطأ أثناء التوليد: {e}")
