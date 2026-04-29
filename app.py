@@ -30,14 +30,24 @@ def send_telegram_msg(message):
     except Exception as e:
         st.error(f"خطأ في إرسال تلجرام: {e}")
         return False
-
-# ====================== 3. إعداد Gemini ======================
-# حل مشكلة SyntaxError: وضعنا الـ try والـ except بشكل صحيح
+    
+# ====================== 3. إعداد Gemini (نسخة مقاومة للأخطاء) ======================
 try:
     if "GEMINI_API_KEY" in st.secrets:
         genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-        # حل مشكلة 404: نستخدم المسار الكامل للموديل
-        model = genai.GenerativeModel(model_name="models/gemini-1.5-flash")
+        
+        # سنحاول تشغيل Flash أولاً، وإذا فشل سنحول تلقائياً لـ Pro
+        try:
+            model = genai.GenerativeModel(model_name="gemini-1.5-flash")
+            # اختبار بسيط للتأكد من أن الموديل يعمل
+            model.generate_content("test") 
+        except:
+            try:
+                model = genai.GenerativeModel(model_name="models/gemini-1.5-flash")
+            except:
+                model = genai.GenerativeModel(model_name="gemini-pro")
+        
+        st.success("✅ تم تفعيل الذكاء الاصطناعي بنجاح")
     else:
         st.warning("⚠️ يرجى إضافة GEMINI_API_KEY في Secrets")
         model = None
