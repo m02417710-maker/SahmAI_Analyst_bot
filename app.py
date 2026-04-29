@@ -137,17 +137,26 @@ if ticker:
 
     else:
         st.info("أدخل رمز سهم صحيح للبدء (مثلاً: AAPL للأسهم الأمريكية أو 2222.SR لأرامكو)")
-      
-import requests
+# تأكد من توليد الرد أولاً
+if st.button("🚀 اطلب التحليل الفني"):
+    with st.spinner("جاري التفكير..."):
+        try:
+            # هنا يتم تعريف المتغير response
+            response = model.generate_content(prompt) 
+            st.markdown("### 📝 تقرير الخبير:")
+            st.success(response.text)
+            
+            # احفظ الرد في "جلسة العمل" لكي لا يختفي
+            st.session_state['last_response'] = response.text
+        except Exception as e:
+            st.error(f"خطأ: {e}")
 
-def send_telegram_msg(message):
-    token = st.secrets["TELEGRAM_TOKEN"] # ضعه في Secrets كما فعلت مع Gemini
-    chat_id = st.secrets["TELEGRAM_CHAT_ID"]
-    url = f"https://api.telegram.org/bot{token}/sendMessage?chat_id={chat_id}&text={message}"
-    requests.get(url)
-
-# مثال للاستخدام بعد تحليل Gemini:
+# عند الإرسال لتلجرام، نتحقق من وجود الرد في جلسة العمل
 if st.button("إرسال التحليل لهاتفي 📱"):
-    send_telegram_msg(f"تحليل سهم {ticker}: \n {response.text}")
-    st.success("تم إرسال التقرير إلى تلجرام!")
-    
+    if 'last_response' in st.session_state:
+        msg = f"تحليل سهم {ticker}: \n {st.session_state['last_response']}"
+        send_telegram_msg(msg)
+        st.success("تم الإرسال بنجاح!")
+    else:
+        st.warning("يرجى إجراء التحليل الفني أولاً قبل الإرسال.")
+        
