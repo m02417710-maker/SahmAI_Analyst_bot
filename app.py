@@ -138,3 +138,16 @@ if ticker:
     else:
         st.info("أدخل رمز سهم صحيح للبدء (مثلاً: AAPL للأسهم الأمريكية أو 2222.SR لأرامكو)")
       
+import requests
+
+def send_telegram_msg(message):
+    token = st.secrets["TELEGRAM_TOKEN"] # ضعه في Secrets كما فعلت مع Gemini
+    chat_id = st.secrets["TELEGRAM_CHAT_ID"]
+    url = f"https://api.telegram.org/bot{token}/sendMessage?chat_id={chat_id}&text={message}"
+    requests.get(url)
+
+# مثال للاستخدام بعد تحليل Gemini:
+if st.button("إرسال التحليل لهاتفي 📱"):
+    send_telegram_msg(f"تحليل سهم {ticker}: \n {response.text}")
+    st.success("تم إرسال التقرير إلى تلجرام!")
+    
