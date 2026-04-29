@@ -1,5 +1,3 @@
-# قم بإنشاء مستودع جديد باسم (مثال) stock-egypt-analyst
-# ثم اتبع هذه الأوامر:
 
 git init
 git add .
