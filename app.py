@@ -7,20 +7,29 @@ CACHE_DIR = ".cache"
 ad.user_cache_dir = lambda *args: CACHE_DIR
 Path(CACHE_DIR).mkdir(exist_ok=True)
 
-# الآن نقوم باستيراد باقي المكتبات
+# استيراد باقي المكتبات
 import yfinance as yf
 import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import google.generativeai as genai
 import pandas_ta as ta
+import requests  # مهم لدالة تلجرام
 
-# ====================== 1. إعداد الصفحة والمظهر ======================
-st.set_page_config(page_title="Stock AI Analyst Pro 📈", layout="wide")
+# ====================== 1. إعداد الصفحة ======================
+st.set_page_config(
+    page_title="Stock AI Analyst Pro 📈",
+    layout="wide"
+)
 
 st.markdown("""
     <style>
-    .stMetric { background-color: #161b22; border-radius: 10px; padding: 15px; border: 1px solid #30363d; }
+    .stMetric { 
+        background-color: #161b22; 
+        border-radius: 10px; 
+        padding: 15px; 
+        border: 1px solid #30363d; 
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -38,7 +47,8 @@ def send_telegram_msg(message):
     except Exception as e:
         st.error(f"خطأ في إرسال تلجرام: {e}")
         return False
-# ====================== 3. إعداد Gemini (النسخة الذكية والمضمونة) ======================
+
+# ====================== 3. إعداد Gemini ======================
 def initialize_gemini():
     if "GEMINI_API_KEY" not in st.secrets:
         st.warning("⚠️ يرجى إضافة GEMINI_API_KEY في Secrets")
@@ -46,86 +56,115 @@ def initialize_gemini():
 
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
     
-    # قائمة الموديلات المراد تجربتها بالترتيب (الأفضل فالأضمن)
     model_names = [
-        "gemini-1.5-flash", 
-        "models/gemini-1.5-flash", 
-        "gemini-pro"
+        "gemini-1.5-flash",
+        "gemini-1.5-pro",
+        "models/gemini-1.5-flash"
     ]
     
     for name in model_names:
         try:
             test_model = genai.GenerativeModel(model_name=name)
-            # إجراء اختبار حقيقي وصغير جداً للتأكد من أن الموديل "موجود" ويعمل
+            # اختبار سريع
             test_model.generate_content("ping", generation_config={"max_output_tokens": 1})
-            return test_model # إذا نجح الاختبار، يعيد هذا الموديل فوراً
+            return test_model
         except Exception:
-            continue # إذا فشل (404 مثلاً)، ينتقل لاسم الموديل التالي في القائمة
+            continue
             
     return None
 
-# تنفيذ التهيئة
+# تهيئة Gemini
 model = initialize_gemini()
 
 if model:
-    st.success(f"✅ تم تفعيل الذكاء الاصطناعي بنجاح ({model.model_name.split('/')[-1]})")
+    st.success(f"✅ تم تفعيل Gemini بنجاح ({model.model_name.split('/')[-1]})")
 else:
-    st.error("❌ فشل الاتصال بجميع إصدارات Gemini. تأكد من صلاحية الـ API Key وإصدار المكتبة.")
-# ====================== 4. جلب البيانات والمؤشرات ======================
+    st.error("❌ فشل الاتصال بـ Gemini. تأكد من صلاحية API Key")
+
+# ====================== 4. جلب البيانات ======================
 @st.cache_data(ttl=600)
 def get_stock_data(ticker, period="1y"):
     try:
         stock = yf.Ticker(ticker)
         df = stock.history(period=period)
-        if df.empty: return None, None
+        if df.empty:
+            return None, None
         
         # إضافة المؤشرات الفنية
         df['SMA_20'] = ta.sma(df['Close'], length=20)
         df['EMA_9'] = ta.ema(df['Close'], length=9)
         df['RSI'] = ta.rsi(df['Close'], length=14)
+        
         return df, stock.info
-    except Exception as e:
+    except Exception:
         return None, None
 
-# ====================== 5. الواجهة الجانبية ======================
+# ====================== 5. الشريط الجانبي ======================
 with st.sidebar:
     st.header("⚙️ الإعدادات")
-    ticker_input = st.text_input("رمز السهم", value="2222.SR").upper()
+    ticker_input = st.text_input("رمز السهم", value="2222.SR").upper().strip()
     period_select = st.selectbox("الفترة", ["3mo", "6mo", "1y", "2y"], index=2)
     st.divider()
 
-# ====================== 6. العرض الرئيسي والتحليل ======================
+# ====================== 6. العرض الرئيسي ======================
 if ticker_input:
     hist, info = get_stock_data(ticker_input, period_select)
     
-    if hist is not None:
-        # عرض المقاييس الأساسية
+    if hist is not None and not hist.empty:
         curr_price = info.get('currentPrice') or hist['Close'].iloc[-1]
-        rsi_val = hist['RSI'].iloc[-1]
+        rsi_val = hist['RSI'].iloc[-1] if 'RSI' in hist.columns else None
         
+        # عرض المقاييس
         c1, c2, c3 = st.columns(3)
         c1.metric("السعر الحالي", f"{curr_price:.2f}")
-        c2.metric("RSI (14)", f"{rsi_val:.1f}")
+        c2.metric("RSI (14)", f"{rsi_val:.1f}" if rsi_val else "N/A")
         c3.metric("اسم الشركة", info.get('longName', ticker_input))
 
         # الرسم البياني
         fig = make_subplots(rows=2, cols=1, shared_xaxes=True, row_heights=[0.7, 0.3])
-        fig.add_trace(go.Candlestick(x=hist.index, open=hist['Open'], high=hist['High'], low=hist['Low'], close=hist['Close'], name="السعر"), row=1, col=1)
-        fig.add_trace(go.Scatter(x=hist.index, y=hist['RSI'], name="RSI", line=dict(color='magenta')), row=2, col=1)
-        fig.update_layout(height=500, template="plotly_dark", xaxis_rangeslider_visible=False)
+        
+        fig.add_trace(go.Candlestick(
+            x=hist.index, 
+            open=hist['Open'], 
+            high=hist['High'], 
+            low=hist['Low'], 
+            close=hist['Close'], 
+            name="السعر"
+        ), row=1, col=1)
+        
+        if rsi_val is not None:
+            fig.add_trace(go.Scatter(
+                x=hist.index, 
+                y=hist['RSI'], 
+                name="RSI", 
+                line=dict(color='magenta')
+            ), row=2, col=1)
+        
+        fig.update_layout(
+            height=550, 
+            template="plotly_dark", 
+            xaxis_rangeslider_visible=False
+        )
         st.plotly_chart(fig, use_container_width=True)
 
         st.divider()
 
         # التحليل بالذكاء الاصطناعي
-        st.subheader("🚀 التحليل والربط")
+        st.subheader("🚀 التحليل الذكي")
         
-        # تجهيز النص (Prompt) بشكل آمن
-        prompt_text = f"حلل سهم {ticker_input} فنياً. السعر الحالي: {curr_price:.2f}. مؤشر RSI: {rsi_val:.2f}. اذكر نقاط الدعم والمقاومة وتوصية مختصرة بالعربية."
+        prompt_text = f"""
+        أنت محلل أسهم محترف. حلل السهم {ticker_input} باللغة العربية.
+        السعر الحالي: {curr_price:.2f}
+        مؤشر RSI: {rsi_val:.2f if rsi_val else 'غير متوفر'}
+        أعطِ تحليلاً فنياً مختصراً يشمل:
+        - الاتجاه العام
+        - نقاط الدعم والمقاومة المهمة
+        - توصية واضحة (شراء / بيع / انتظار)
+        """
 
-        col_buttons = st.columns(2)
+        col1, col2 = st.columns(2)
 
-        with col_buttons[0]:
+        with col1:
             if st.button("🤖 طلب تحليل Gemini", use_container_width=True):
                 if model:
                     with st.spinner("جاري التحليل..."):
@@ -133,19 +172,21 @@ if ticker_input:
                             response = model.generate_content(prompt_text)
                             st.session_state['last_analysis'] = response.text
                             st.markdown("### 📝 نتيجة التحليل:")
-                            st.success(response.text)
+                            st.write(response.text)
                         except Exception as e:
                             st.error(f"خطأ في توليد التحليل: {e}")
                 else:
-                    st.error("الموديل غير مهيأ، تحقق من الـ API Key")
+                    st.error("لم يتم تهيئة Gemini بشكل صحيح")
 
-        with col_buttons[1]:
-            if st.button("📱 إرسال لتلجرام", use_container_width=True):
+        with col2:
+            if st.button("📱 إرسال إلى تلجرام", use_container_width=True):
                 if 'last_analysis' in st.session_state:
                     message = f"تقرير سهم {ticker_input}:\n\n{st.session_state['last_analysis']}"
                     if send_telegram_msg(message):
-                        st.info("تم الإرسال لهاتفك بنجاح!")
+                        st.success("✅ تم الإرسال إلى تلجرام بنجاح!")
                 else:
-                    st.warning("يرجى الضغط على زر التحليل أولاً.")
+                    st.warning("يرجى عمل تحليل Gemini أولاً")
     else:
-        st.error("تعذر جلب البيانات. تأكد من كتابة رمز السهم بشكل صحيح (مثال: 2222.SR)")
+        st.error("تعذر جلب البيانات. تأكد من صحة رمز السهم (مثال: 2222.SR أو AAPL)")
+else:
+    st.info("أدخل رمز السهم في الشريط الجانبي للبدء")
