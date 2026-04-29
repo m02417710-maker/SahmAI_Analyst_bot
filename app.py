@@ -33,7 +33,14 @@ def send_telegram_msg(message):
 try:
     if "GEMINI_API_KEY" in st.secrets:
         genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-        model = genai.GenerativeModel("gemini-1.5-flash")
+try:
+    model = genai.GenerativeModel(
+        model_name="models/gemini-1.5-flash"  # أضفنا كلمة models/ قبل الاسم
+    )
+except Exception as e:
+    # كخطة بديلة إذا فشل الفلاش، نستخدم النسخة العادية
+    model = genai.GenerativeModel("gemini-pro") 
+
     else:
         st.warning("⚠️ يرجى إضافة GEMINI_API_KEY في Secrets")
 except Exception as e:
