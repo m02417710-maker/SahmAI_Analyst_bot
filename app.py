@@ -30,30 +30,39 @@ def send_telegram_msg(message):
     except Exception as e:
         st.error(f"خطأ في إرسال تلجرام: {e}")
         return False
-# ====================== 3. إعداد Gemini (نسخة مقاومة للأخطاء) ======================
-try:
-    if "GEMINI_API_KEY" in st.secrets:
-        genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-        
-        # سنحاول تشغيل Flash أولاً، وإذا فشل سنحول تلقائياً لـ Pro
-        try:
-            model = genai.GenerativeModel(model_name="gemini-1.5-flash")
-            # اختبار بسيط للتأكد من أن الموديل يعمل
-            model.generate_content("test") 
-        except:
-            try:
-                model = genai.GenerativeModel(model_name="models/gemini-1.5-flash")
-            except:
-                model = genai.GenerativeModel(model_name="gemini-pro")
-        
-        st.success("✅ تم تفعيل الذكاء الاصطناعي بنجاح")
-    else:
+# ====================== 3. إعداد Gemini (النسخة الذكية والمضمونة) ======================
+def initialize_gemini():
+    if "GEMINI_API_KEY" not in st.secrets:
         st.warning("⚠️ يرجى إضافة GEMINI_API_KEY في Secrets")
-        model = None
-except Exception as e:
-    st.error(f"❌ خطأ في تهيئة الذكاء الاصطناعي: {e}")
-    model = None
+        return None
 
+    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+    
+    # قائمة الموديلات المراد تجربتها بالترتيب (الأفضل فالأضمن)
+    model_names = [
+        "gemini-1.5-flash", 
+        "models/gemini-1.5-flash", 
+        "gemini-pro"
+    ]
+    
+    for name in model_names:
+        try:
+            test_model = genai.GenerativeModel(model_name=name)
+            # إجراء اختبار حقيقي وصغير جداً للتأكد من أن الموديل "موجود" ويعمل
+            test_model.generate_content("ping", generation_config={"max_output_tokens": 1})
+            return test_model # إذا نجح الاختبار، يعيد هذا الموديل فوراً
+        except Exception:
+            continue # إذا فشل (404 مثلاً)، ينتقل لاسم الموديل التالي في القائمة
+            
+    return None
+
+# تنفيذ التهيئة
+model = initialize_gemini()
+
+if model:
+    st.success(f"✅ تم تفعيل الذكاء الاصطناعي بنجاح ({model.model_name.split('/')[-1]})")
+else:
+    st.error("❌ فشل الاتصال بجميع إصدارات Gemini. تأكد من صلاحية الـ API Key وإصدار المكتبة.")
 # ====================== 4. جلب البيانات والمؤشرات ======================
 @st.cache_data(ttl=600)
 def get_stock_data(ticker, period="1y"):
