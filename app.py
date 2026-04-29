@@ -1,13 +1,19 @@
-import appdirs as ad
-ad.user_cache_dir = lambda *args: "/tmp"
 import streamlit as st
+from pathlib import Path
+import appdirs as ad
+
+# حل مشكلة الكاش الخاصة بـ yfinance على Streamlit Cloud
+CACHE_DIR = ".cache"
+ad.user_cache_dir = lambda *args: CACHE_DIR
+Path(CACHE_DIR).mkdir(exist_ok=True)
+
+# الآن نقوم باستيراد باقي المكتبات
 import yfinance as yf
 import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import google.generativeai as genai
 import pandas_ta as ta
-import requests
 
 # ====================== 1. إعداد الصفحة والمظهر ======================
 st.set_page_config(page_title="Stock AI Analyst Pro 📈", layout="wide")
