@@ -48,6 +48,8 @@ try:
 except Exception as e:
     st.error(f"❌ خطأ في التهيئة: {e}")
     model = None
+
+    
 # ====================== 4. جلب البيانات والمؤشرات ======================
 @st.cache_data(ttl=600)
 def get_stock_data(ticker, period="1y"):
