@@ -31,30 +31,23 @@ def send_telegram_msg(message):
         st.error(f"خطأ في إرسال تلجرام: {e}")
         return False
     
-# ====================== 3. إعداد Gemini (نسخة مقاومة للأخطاء) ======================
+# ====================== 3. إعداد Gemini (النسخة المستقرة) ======================
 try:
     if "GEMINI_API_KEY" in st.secrets:
         genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
         
-        # سنحاول تشغيل Flash أولاً، وإذا فشل سنحول تلقائياً لـ Pro
-        try:
-            model = genai.GenerativeModel(model_name="gemini-1.5-flash")
-            # اختبار بسيط للتأكد من أن الموديل يعمل
-            model.generate_content("test") 
-        except:
-            try:
-                model = genai.GenerativeModel(model_name="models/gemini-1.5-flash")
-            except:
-                model = genai.GenerativeModel(model_name="gemini-pro")
+        # استخدام موديل Pro لأنه الأكثر استقراراً وتوافقاً
+        model = genai.GenerativeModel(model_name="gemini-pro")
         
-        st.success("✅ تم تفعيل الذكاء الاصطناعي بنجاح")
+        # اختبار الاتصال
+        test_response = model.generate_content("صحة الاتصال")
+        st.success("✅ تم تفعيل الذكاء الاصطناعي (Gemini Pro) بنجاح")
     else:
         st.warning("⚠️ يرجى إضافة GEMINI_API_KEY في Secrets")
         model = None
 except Exception as e:
-    st.error(f"❌ خطأ في تهيئة الذكاء الاصطناعي: {e}")
+    st.error(f"❌ خطأ في التهيئة: {e}")
     model = None
-
 # ====================== 4. جلب البيانات والمؤشرات ======================
 @st.cache_data(ttl=600)
 def get_stock_data(ticker, period="1y"):
