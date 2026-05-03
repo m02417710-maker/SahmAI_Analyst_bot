@@ -40,3 +40,27 @@ pytest backend/tests/
 
 # اختبار الأداء
 locust -f tests/load_test.py
+# 1. سحب المشروع
+git clone https://github.com/yourusername/trading_platform.git
+cd trading_platform
+
+# 2. إعداد البيئة
+cp .env.example .env
+# - أضف GEMINI_API_KEY
+# - أضف TELEGRAM_TOKEN
+
+# 3. تشغيل جميع الخدمات
+docker-compose up -d
+
+# 4. التحقق من الخدمات
+docker-compose ps
+
+# 5. الوصول إلى:
+# - واجهة الويب: http://localhost
+# - API docs: http://localhost:8000/docs
+# - Grafana: http://localhost:3000 (admin/admin)
+# - Prometheus: http://localhost:9090
+
+# 6. مشاهدة السجلات
+docker-compose logs -f auto_trader
+docker-compose logs -f sentiment_agent
