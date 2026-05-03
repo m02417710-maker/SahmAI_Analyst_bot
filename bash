@@ -189,3 +189,31 @@ echo """
 - بريميوم: 599 ج.م/شهر
 - مؤسسات: 1499 ج.م/شهر
 """
+# التحقق من السجلات
+docker-compose logs
+
+# إعادة تشغيل Docker
+sudo systemctl restart docker
+# فحص صحة قاعدة البيانات
+docker-compose exec timescaledb pg_isready
+
+# إعادة تعيين كلمة المرور
+docker-compose exec timescaledb psql -U postgres -c "ALTER USER trader WITH PASSWORD 'new_password';"
+# زيادة عدد العمال
+# تعديل backend/Dockerfile.prod
+--workers 8
+
+# إعادة البناء
+docker-compose build backend
+docker-compose up -d backend
+# سحب آخر التغييرات
+git pull
+
+# إيقاف الخدمات
+make down
+
+# إعادة البناء والتشغيل
+make prod
+
+# تحديث قاعدة البيانات (إن وجد)
+docker-compose exec backend python scripts/migrate.py
