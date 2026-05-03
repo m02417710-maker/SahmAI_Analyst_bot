@@ -255,4 +255,76 @@ class TaxReportGenerator:
                         <td>{{ 'شراء' if trans.transaction_type == 'buy' else 'بيع' }}</td>
                         <td>{{ trans.quantity }}</td>
                         <td>{{ "%.2f"|format(trans.price) }}</td>
-                        <td>{{ "%.
+                        <td>{{ "%.2f"|format(trans.total_amount) }}</td>
+                        <td class="{{ 'positive' if trans.profit_loss > 0 else 'negative' }}">
+                            {{ "%.2f"|format(trans.profit_loss) }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            
+            <div class="footer">
+                <p>هذا التقرير تم إنشاؤه تلقائياً بواسطة منصة التداول الذكية</p>
+                <p>يرجى الاحتفاظ بهذا التقرير للسجلات الضريبية الخاصة بك</p>
+                <p>للأسئلة والاستفسارات: tax@trading-platform.com</p>
+            </div>
+        </body>
+        </html>
+        """
+        
+        template = Template(html_template)
+        html_content = template.render(report=tax_report)
+        
+        # تحويل HTML إلى PDF
+        pdf_bytes = pdfkit.from_string(html_content, False, options={
+            'enable-local-file-access': None,
+            'encoding': 'UTF-8'
+        })
+        
+        return pdf_bytes
+    
+    async def _get_user_transactions_for_year(self, user_id: str, year: int) -> List[TaxTransaction]:
+        """جلب معاملات المستخدم لسنة محددة"""
+        # يمكن جلب من قاعدة البيانات
+        # هنا بيانات تجريبية
+        mock_transactions = []
+        
+        for i in range(5):
+            profit_loss = (i + 1) * 1000 * (1 if i % 2 == 0 else -1)
+            mock_transactions.append(
+                TaxTransaction(
+                    transaction_id=f"TX_{year}_{i}",
+                    user_id=user_id,
+                    date=datetime(year, i+1, 15),
+                    symbol="COMI.CA" if i % 2 == 0 else "TMGH.CA",
+                    transaction_type="sell" if i % 2 == 0 else "buy",
+                    quantity=100,
+                    price=50 + i * 10,
+                    total_amount=(50 + i * 10) * 100,
+                    fees=5.5,
+                    tax_amount=0,
+                    profit_loss=profit_loss
+                )
+            )
+        
+        return mock_transactions
+    
+    async def _get_user_transactions_between(
+        self,
+        user_id: str,
+        start_date: datetime,
+        end_date: datetime
+    ) -> List[TaxTransaction]:
+        """جلب معاملات المستخدم بين تاريخين"""
+        # تنفيذ مماثل للدالة أعلاه
+        return []
+    
+    async def _get_user_info(self, user_id: str) -> Dict:
+        """الحصول على معلومات المستخدم"""
+        return {
+            "username": f"user_{user_id}",
+            "email": f"{user_id}@example.com",
+            "tax_id": f"TAX_{user_id}",
+            "address": "مصر"
+        }
