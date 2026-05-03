@@ -1,3 +1,76 @@
+#!/bin/bash
+# ملف: deploy.sh
+# تشغيل المنصة بالكامل
+
+echo "🚀 بدء تشغيل منصة التداول المتكاملة..."
+
+# 1. التحقق من المتطلبات
+if ! command -v docker &> /dev/null; then
+    echo "❌ Docker غير مثبت"
+    exit 1
+fi
+
+if ! command -v docker-compose &> /dev/null; then
+    echo "❌ Docker Compose غير مثبت"
+    exit 1
+fi
+
+# 2. إعداد البيئة
+if [ ! -f .env ]; then
+    echo "📝 إنشاء ملف .env..."
+    cp .env.example .env
+    echo "⚠️ يرجى تعديل ملف .env وإضافة المفاتيح المطلوبة"
+    exit 1
+fi
+
+# 3. بناء وتشغيل الحاويات
+echo "🏗️ بناء الحاويات..."
+docker-compose build --no-cache
+
+echo "🚀 تشغيل الخدمات..."
+docker-compose up -d
+
+# 4. انتظار الخدمات
+echo "⏳ انتظار الخدمات للبدء..."
+sleep 10
+
+# 5. التحقق من الخدمات
+echo "✅ التحقق من الخدمات:"
+docker-compose ps
+
+# 6. إنشاء مستخدم مسؤول
+echo "👑 إنشاء مستخدم مسؤول..."
+docker-compose exec backend python scripts/create_admin.py
+
+# 7. تهيئة البيانات الأولية
+echo "📊 تهيئة البيانات..."
+docker-compose exec backend python scripts/init_data.py
+
+# 8. بدء المسابقات التلقائية
+echo "🏆 بدء المسابقات اليومية..."
+docker-compose exec backend python scripts/start_competitions.py
+
+echo ""
+echo "🎉 تم تشغيل المنصة بنجاح!"
+echo ""
+echo "📍 الروابط:"
+echo "   - واجهة المستخدم: http://localhost"
+echo "   - لوحة المسؤول: http://localhost/admin"
+echo "   - API Documentation: http://localhost:8000/docs"
+echo "   - Grafana: http://localhost:3000 (admin/admin)"
+echo "   - Prometheus: http://localhost:9090"
+echo ""
+echo "📱 تطبيق الموبايل:"
+echo "   - Flutter run: cd mobile && flutter run"
+echo ""
+echo "🤖 بوت التليجرام:"
+echo "   - ابحث عن @TradingPlatformBot"
+echo ""
+echo "📚 المنصة التعليمية:"
+echo "   - http://localhost/learning"
+echo ""
+echo "🏆 المسابقات:"
+echo "   - http://localhost/competitions"
 # 1. إنشاء المجلد الرئيسي للمشروع
 mkdir stock-egypt-analyst
 cd stock-egypt-analyst
