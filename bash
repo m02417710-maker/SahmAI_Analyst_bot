@@ -64,3 +64,55 @@ docker-compose ps
 # 6. مشاهدة السجلات
 docker-compose logs -f auto_trader
 docker-compose logs -f sentiment_agent
+# 1. إضافة المتغيرات الجديدة إلى .env
+echo """
+# Stripe API Keys (للدعم)
+STRIPE_PUBLIC_KEY=pk_test_xxx
+STRIPE_SECRET_KEY=sk_test_xxx
+STRIPE_WEBHOOK_SECRET=whsec_xxx
+
+# Tax Settings
+TAX_RATE=0.225
+TAX_AUTHORITY_ID=123456
+
+# Admin Settings
+ADMIN_EMAIL=admin@trading-platform.com
+ADMIN_PASSWORD_HASH=xxx
+""" >> .env
+
+# 2. إعادة بناء وتشغيل جميع الخدمات
+docker-compose down
+docker-compose build --no-cache
+docker-compose up -d
+
+# 3. إنشاء مستخدم مسؤول
+docker-compose exec backend python scripts/create_admin.py
+
+# 4. التحقق من جميع الخدمات
+docker-compose ps
+docker-compose logs -f --tail=50
+
+# 5. فتح لوحة التحكم
+echo """
+✅ المنصة جاهزة للتشغيل!
+
+🔗 الروابط:
+- تطبيق الويب: http://localhost
+- لوحة تحكم المسؤول: http://localhost/admin
+- توثيق API: http://localhost:8000/docs
+- Grafana: http://localhost:3000 (admin/admin)
+- Prometheus: http://localhost:9090
+
+📱 تطبيق الموبايل:
+- flutter run lib/main.dart
+
+🤖 بوت التليجرام:
+- ابحث عن @TradingPlatformBot
+
+💰 نظام الاشتراكات:
+- مجاني: 0 ج.م
+- أساسي: 99 ج.م/شهر
+- احترافي: 299 ج.م/شهر
+- بريميوم: 599 ج.م/شهر
+- مؤسسات: 1499 ج.م/شهر
+"""
