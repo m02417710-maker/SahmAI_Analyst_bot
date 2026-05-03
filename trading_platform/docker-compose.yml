@@ -1,1 +1,116 @@
+# ملف: docker-compose.yml
+# المسار: /trading_platform/docker-compose.yml
+# الوظيفة: تشغيل جميع خدمات المنصة في حاويات Docker
 
+version: '3.8'
+
+services:
+  # قاعدة البيانات الزمنية
+  timescaledb:
+    image: timescale/timescaledb:latest-pg14
+    container_name: trading_timescaledb
+    environment:
+      POSTGRES_DB: trading_db
+      POSTGRES_USER: trader
+      POSTGRES_PASSWORD: secure_password_2024
+      POSTGRES_HOST_AUTH_METHOD: scram-sha-256
+    ports:
+      - "5432:5432"
+    volumes:
+      - timescale_data:/var/lib/postgresql/data
+      - ./backups:/backups
+    networks:
+      - trading_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U trader -d trading_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis للتخزين المؤقت
+  redis:
+    image: redis:7-alpine
+    container_name: trading_redis
+    command: redis-server --appendonly yes --requirepass redis_secure_pass
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - trading_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # خادم API (FastAPI)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: trading_backend
+    environment:
+      - DATABASE_URL=postgresql://trader:secure_password_2024@timescaledb:5432/trading_db
+      - REDIS_URL=redis://:redis_secure_pass@redis:6379
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - TELEGRAM_TOKEN=${TELEGRAM_TOKEN}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - ./logs:/logs
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - trading_network
+    restart: unless-stopped
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+  # بوت التليجرام
+  telegram_bot:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.bot
+    container_name: trading_telegram_bot
+    environment:
+      - TELEGRAM_TOKEN=${TELEGRAM_TOKEN}
+      - API_URL=http://backend:8000
+      - REDIS_URL=redis://:redis_secure_pass@redis:6379
+    volumes:
+      - ./backend:/app
+      - ./logs:/logs
+    depends_on:
+      - backend
+      - redis
+    networks:
+      - trading_network
+    restart: unless-stopped
+    command: python alerts/telegram_bot.py
+
+  # Nginx (لخدمة الملفات الثابتة والموازنة)
+  nginx:
+    image: nginx:alpine
+    container_name: trading_nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./frontend/dist:/usr/share/nginx/html
+      - ./config/nginx.conf:/etc/nginx/nginx.conf
+      - ./ssl:/etc/nginx/ssl
+    depends_on:
+      - backend
+    networks:
+      - trading_network
+    restart: unless-stopped
+
+  # مراقبة الأداء (اختياري)
+  prometheus:
+    image: prom/prometheus
