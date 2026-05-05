@@ -2,5 +2,5 @@ secrets.toml
 GEMINI_API_KEY = "gen-lang-client-0596119625"
 # مفاتيح API المطلوبة
 # استبدل هذه القيم بالمعلومات التي حصلت عليها
-TELEGRAM_TOKEN = "123456789:ABCDefghIJKLmnop..."
-TELEGRAM_CHAT_ID = "98765432
+TELEGRAM_TOKEN = "8514086908:AAH-2V7sIOzktAhh8QE42Uwmr-THjjMYTRM"
+TELEGRAM_CHAT_ID = "8514086908"
