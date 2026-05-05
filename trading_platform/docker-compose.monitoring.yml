@@ -1,81 +1,67 @@
-# ملف: docker-compose.monitoring.yml
-# المسار: /trading_platform/docker-compose.monitoring.yml
-# الوظيفة: خدمات المراقبة الإضافية
+# ملف: docker-compose.production.yml
+# المسار: /trading_platform/docker-compose.production.yml
+# الوظيفة: بيئة العمل بدقة عالية وسرعة فائقة
 
 version: '3.8'
 
 services:
-  # Prometheus
-  prometheus:
-    image: prom/prometheus:latest
-    container_name: monitoring_prometheus
-    volumes:
-      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml
-      - prometheus_data:/prometheus
-    ports:
-      - "9090:9090"
-    networks:
-      - monitoring_network
-    restart: unless-stopped
-
-  # Grafana
-  grafana:
-    image: grafana/grafana:latest
-    container_name: monitoring_grafana
+  # ====================== قاعدة البيانات عالية الأداء ======================
+  timescaledb:
+    image: timescale/timescaledb:latest-pg14
+    container_name: trading_timescaledb_prod
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin
-      - GF_INSTALL_PLUGINS=grafana-piechart-panel
+      POSTGRES_DB: trading_db
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_SHARED_BUFFERS: 4GB
+      POSTGRES_EFFECTIVE_CACHE_SIZE: 12GB
+      POSTGRES_WORK_MEM: 128MB
+      POSTGRES_MAINTENANCE_WORK_MEM: 1GB
+    ports:
+      - "5432:5432"
     volumes:
-      - grafana_data:/var/lib/grafana
-    ports:
-      - "3000:3000"
-    depends_on:
-      - prometheus
+      - timescale_prod_data:/var/lib/postgresql/data
+      - ./backups:/backups
     networks:
-      - monitoring_network
-    restart: unless-stopped
+      - trading_network_prod
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 8G
+        reservations:
+          cpus: '2'
+          memory: 4G
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d trading_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
-  # Alertmanager
-  alertmanager:
-    image: prom/alertmanager:latest
-    container_name: monitoring_alertmanager
+  # ====================== Redis فائق السرعة ======================
+  redis:
+    image: redis:7-alpine
+    container_name: trading_redis_prod
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD} --maxmemory 4gb --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
     volumes:
-      - ./config/alertmanager.yml:/etc/alertmanager/alertmanager.yml
-    ports:
-      - "9093:9093"
+      - redis_prod_data:/data
     networks:
-      - monitoring_network
-    restart: unless-stopped
+      - trading_network_prod
+    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 4G
 
-  # Node Exporter للمقاييس
-  node_exporter:
-    image: prom/node-exporter:latest
-    container_name: monitoring_node_exporter
-    ports:
-      - "9100:9100"
-    networks:
-      - monitoring_network
-    restart: unless-stopped
-
-  # cAdvisor لمراقبة Docker
-  cadvisor:
-    image: gcr.io/cadvisor/cadvisor:latest
-    container_name: monitoring_cadvisor
-    ports:
-      - "8080:8080"
-    volumes:
-      - /:/rootfs:ro
-      - /var/run:/var/run:ro
-      - /sys:/sys:ro
-      - /var/lib/docker/:/var/lib/docker:ro
-    networks:
-      - monitoring_network
-    restart: unless-stopped
-
-networks:
-  monitoring_network:
-    driver: bridge
-
-volumes:
-  prometheus_data:
-  grafana_data:
+  # ====================== Backend محسن ======================
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.prod
+    container_name: trading_backend_prod
+    environment:
+      - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@timescaledb:5432/trading_db
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379
