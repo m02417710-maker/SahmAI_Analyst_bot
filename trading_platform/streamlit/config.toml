@@ -1,0 +1,52 @@
+# ملف: .streamlit/config.toml
+# المسار: /trading_platform/.streamlit/config.toml
+# الوظيفة: إعدادات متقدمة لتطبيق Streamlit
+
+[server]
+# إعدادات الخادم
+port = 8501
+address = "0.0.0.0"
+maxUploadSize = 100
+enableCORS = true
+enableXsrfProtection = true
+headless = true
+
+[browser]
+# إعدادات المتصفح
+gatherUsageStats = false
+serverAddress = "localhost"
+serverPort = 8501
+
+[theme]
+# السمة الداكنة المتقدمة
+base = "dark"
+primaryColor = "#00ff88"
+backgroundColor = "#0a0a0a"
+secondaryBackgroundColor = "#1e1e1e"
+textColor = "#ffffff"
+font = "cairo"
+
+[theme.colors]
+# ألوان مخصصة
+success = "#00ff88"
+error = "#ff4444"
+warning = "#ffaa00"
+info = "#00aaff"
+
+[logger]
+# إعدادات التسجيل
+level = "info"
+
+[runner]
+# إعدادات التشغيل
+magicEnabled = true
+installTracer = false
+
+[deprecation]
+# تجاهل تحذيرات الإصدارات القديمة
+showDeprecationWarning = false
+
+[global]
+# إعدادات عامة
+developmentMode = false
+unitTest = false
