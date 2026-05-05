@@ -187,3 +187,7 @@ main() {
 
 # تشغيل
 main
+# بعد تنفيذ جميع الملفات، قم بتشغيل الأمر التالي:
+
+chmod +x deploy_complete.sh
+./deploy_complete.sh
