@@ -1,233 +1,189 @@
 #!/bin/bash
-# ملف: deploy.sh
-# تشغيل المنصة بالكامل
+# ملف: deploy_complete.sh
+# التشغيل الكامل والمتكامل
 
-echo "🚀 بدء تشغيل منصة التداول المتكاملة..."
+set -e
 
-# 1. التحقق من المتطلبات
-if ! command -v docker &> /dev/null; then
-    echo "❌ Docker غير مثبت"
-    exit 1
-fi
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+NC='\033[0m'
 
-if ! command -v docker-compose &> /dev/null; then
-    echo "❌ Docker Compose غير مثبت"
-    exit 1
-fi
+echo -e "${BLUE}"
+echo "╔══════════════════════════════════════════════════════════════╗"
+echo "║                                                              ║"
+echo "║     🏆 منصة التداول المتكاملة - التشغيل الكامل 🏆          ║"
+echo "║                     Trading Platform 4.0                     ║"
+echo "║                                                              ║"
+echo "╚══════════════════════════════════════════════════════════════╝"
+echo -e "${NC}"
+echo ""
+
+# 1. فحص المتطلبات
+check_requirements() {
+    echo -e "${YELLOW}🔍 فحص المتطلبات...${NC}"
+    
+    commands=("docker" "docker-compose" "python3" "git" "curl")
+    for cmd in "${commands[@]}"; do
+        if ! command -v $cmd &> /dev/null; then
+            echo -e "${RED}❌ $cmd غير مثبت${NC}"
+            exit 1
+        fi
+    done
+    
+    echo -e "${GREEN}✅ جميع المتطلبات موجودة${NC}"
+    echo ""
+}
 
 # 2. إعداد البيئة
-if [ ! -f .env ]; then
-    echo "📝 إنشاء ملف .env..."
-    cp .env.example .env
-    echo "⚠️ يرجى تعديل ملف .env وإضافة المفاتيح المطلوبة"
-    exit 1
-fi
+setup_environment() {
+    echo -e "${YELLOW}📝 إعداد البيئة...${NC}"
+    
+    if [ ! -f .env ]; then
+        cp .env.example .env
+        echo -e "${YELLOW}⚠️ تم إنشاء ملف .env${NC}"
+        echo -e "${YELLOW}   يرجى تعديله وإضافة مفاتيح API${NC}"
+        read -p "اضغط Enter بعد تعديل الملف..."
+    fi
+    
+    # إنشاء المجلدات المطلوبة
+    mkdir -p logs models backups ssl certbot/www
+    
+    echo -e "${GREEN}✅ تم إعداد البيئة${NC}"
+    echo ""
+}
 
-# 3. بناء وتشغيل الحاويات
-echo "🏗️ بناء الحاويات..."
-docker-compose build --no-cache
+# 3. بناء الصور
+build_images() {
+    echo -e "${YELLOW}🏗️ بناء صور Docker...${NC}"
+    docker-compose -f docker-compose.full.yml build --no-cache
+    echo -e "${GREEN}✅ تم بناء الصور${NC}"
+    echo ""
+}
 
-echo "🚀 تشغيل الخدمات..."
-docker-compose up -d
+# 4. تشغيل الخدمات
+start_services() {
+    echo -e "${YELLOW}🚀 تشغيل الخدمات...${NC}"
+    docker-compose -f docker-compose.full.yml up -d
+    echo -e "${GREEN}✅ تم تشغيل جميع الخدمات${NC}"
+    echo ""
+}
 
-# 4. انتظار الخدمات
-echo "⏳ انتظار الخدمات للبدء..."
-sleep 10
+# 5. انتظار الخدمات
+wait_for_services() {
+    echo -e "${YELLOW}⏳ انتظار الخدمات للبدء...${NC}"
+    sleep 15
+    
+    # فحص صحة الخدمات
+    for i in {1..30}; do
+        if curl -s http://localhost:8000/health > /dev/null; then
+            echo -e "${GREEN}✅ Backend يعمل${NC}"
+            break
+        fi
+        if [ $i -eq 30 ]; then
+            echo -e "${RED}❌ Backend لا يعمل${NC}"
+            exit 1
+        fi
+        sleep 2
+    done
+    
+    echo ""
+}
 
-# 5. التحقق من الخدمات
-echo "✅ التحقق من الخدمات:"
-docker-compose ps
+# 6. تهيئة البيانات
+initialize_data() {
+    echo -e "${YELLOW}📊 تهيئة البيانات...${NC}"
+    docker-compose exec backend python scripts/init_data.py
+    echo -e "${GREEN}✅ تم تهيئة البيانات${NC}"
+    echo ""
+}
 
-# 6. إنشاء مستخدم مسؤول
-echo "👑 إنشاء مستخدم مسؤول..."
-docker-compose exec backend python scripts/create_admin.py
+# 7. إنشاء المستخدم المسؤول
+create_admin() {
+    echo -e "${YELLOW}👑 إنشاء مستخدم مسؤول...${NC}"
+    docker-compose exec backend python scripts/create_admin.py
+    echo ""
+}
 
-# 7. تهيئة البيانات الأولية
-echo "📊 تهيئة البيانات..."
-docker-compose exec backend python scripts/init_data.py
+# 8. بدء المسابقات
+start_competitions() {
+    echo -e "${YELLOW}🏆 بدء المسابقات...${NC}"
+    docker-compose exec backend python scripts/start_competitions.py
+    echo -e "${GREEN}✅ تم بدء المسابقات${NC}"
+    echo ""
+}
 
-# 8. بدء المسابقات التلقائية
-echo "🏆 بدء المسابقات اليومية..."
-docker-compose exec backend python scripts/start_competitions.py
+# 9. عرض المعلومات
+show_info() {
+    echo -e "${GREEN}"
+    echo "╔══════════════════════════════════════════════════════════════╗"
+    echo "║                                                              ║"
+    echo "║              ✅ تم تشغيل المنصة بنجاح! ✅                     ║"
+    echo "║                                                              ║"
+    echo "╚══════════════════════════════════════════════════════════════╝"
+    echo -e "${NC}"
+    echo ""
+    echo -e "${BLUE}📍 الروابط:${NC}"
+    echo -e "   • واجهة المستخدم: ${GREEN}http://localhost${NC}"
+    echo -e "   • لوحة المسؤول: ${GREEN}http://localhost/admin${NC}"
+    echo -e "   • توثيق API: ${GREEN}http://localhost:8000/docs${NC}"
+    echo -e "   • Grafana: ${GREEN}http://localhost:3000${NC} (admin/${GRAFANA_PASSWORD:-admin})"
+    echo -e "   • Prometheus: ${GREEN}http://localhost:9090${NC}"
+    echo ""
+    echo -e "${BLUE}📱 تطبيق الموبايل:${NC}"
+    echo -e "   • ${GREEN}cd mobile && flutter run${NC}"
+    echo ""
+    echo -e "${BLUE}🤖 بوت التليجرام:${NC}"
+    echo -e "   • ابحث عن: ${GREEN}@TradingPlatformBot${NC}"
+    echo ""
+    echo -e "${BLUE}📚 المنصة التعليمية:${NC}"
+    echo -e "   • ${GREEN}http://localhost/learning${NC}"
+    echo ""
+    echo -e "${BLUE}🏆 المسابقات:${NC}"
+    echo -e "   • ${GREEN}http://localhost/competitions${NC}"
+    echo ""
+    echo -e "${BLUE}📝 الأوامر المتاحة:${NC}"
+    echo -e "   • ${GREEN}make logs${NC} - عرض السجلات"
+    echo -e "   • ${GREEN}make down${NC} - إيقاف الخدمات"
+    echo -e "   • ${GREEN}make backup${NC} - نسخ احتياطي"
+    echo -e "   • ${GREEN}make monitor${NC} - مراقبة النظام"
+    echo ""
+    echo -e "${YELLOW}⚠️ تنبيهات أمنية:${NC}"
+    echo -e "   • قم بتغيير كلمة مرور المسؤول فوراً"
+    echo -e "   • أضف مفاتيح SSL للإنتاج الحقيقي"
+    echo -e "   • قم بتفعيل الـ Firewall"
+    echo -e "   • قم بعمل نسخ احتياطية بشكل دوري"
+    echo ""
+}
 
-echo ""
-echo "🎉 تم تشغيل المنصة بنجاح!"
-echo ""
-echo "📍 الروابط:"
-echo "   - واجهة المستخدم: http://localhost"
-echo "   - لوحة المسؤول: http://localhost/admin"
-echo "   - API Documentation: http://localhost:8000/docs"
-echo "   - Grafana: http://localhost:3000 (admin/admin)"
-echo "   - Prometheus: http://localhost:9090"
-echo ""
-echo "📱 تطبيق الموبايل:"
-echo "   - Flutter run: cd mobile && flutter run"
-echo ""
-echo "🤖 بوت التليجرام:"
-echo "   - ابحث عن @TradingPlatformBot"
-echo ""
-echo "📚 المنصة التعليمية:"
-echo "   - http://localhost/learning"
-echo ""
-echo "🏆 المسابقات:"
-echo "   - http://localhost/competitions"
-# 1. إنشاء المجلد الرئيسي للمشروع
-mkdir stock-egypt-analyst
-cd stock-egypt-analyst
+# 10. فتح المتصفح
+open_browser() {
+    read -p "هل تريد فتح المتصفح الآن؟ (y/n): " open
+    if [ "$open" = "y" ]; then
+        if command -v xdg-open &> /dev/null; then
+            xdg-open http://localhost
+        elif command -v open &> /dev/null; then
+            open http://localhost
+        else
+            echo -e "${YELLOW}افتح المتصفح يدوياً: http://localhost${NC}"
+        fi
+    fi
+}
 
-# 2. إنشاء الهيكل الداخلي
-mkdir -p .streamlit
-mkdir -p assets
-mkdir -p utils
+# ====================== التنفيذ الرئيسي ======================
+main() {
+    check_requirements
+    setup_environment
+    build_images
+    start_services
+    wait_for_services
+    initialize_data
+    create_admin
+    start_competitions
+    show_info
+    open_browser
+}
 
-# 3. إنشاء الملفات الأساسية
-touch app.py
-touch requirements.txt
-touch README.md
-touch .gitignore
-touch .streamlit/secrets.toml
-cp .env.example .env
-# قم بتعديل .env وأضف مفاتيح API الخاصة بك
-docker-compose up -d
-# تشغيل جميع الخدمات
-docker-compose up -d
-
-# تشغيل خدمة محددة
-docker-compose up backend
-
-# إيقاف الخدمات
-docker-compose down
-
-# عرض السجلات
-docker-compose logs -f backend
-# تحديث بيانات السوق يدوياً
-curl -X POST http://localhost:8000/api/market/update
-
-# إعادة حساب المؤشرات
-curl -X POST http://localhost:8000/api/indicators/recalculate
-curl "http://localhost:8000/api/stock/COMI.CA"
-curl "http://localhost:8000/api/market/opportunities"
-curl "http://localhost:8000/api/search/الراجحي"
-# تشغيل اختبارات الوحدة
-pytest backend/tests/
-
-# اختبار الأداء
-locust -f tests/load_test.py
-# 1. سحب المشروع
-git clone https://github.com/yourusername/trading_platform.git
-cd trading_platform
-
-# 2. إعداد البيئة
-cp .env.example .env
-# - أضف GEMINI_API_KEY
-# - أضف TELEGRAM_TOKEN
-
-# 3. تشغيل جميع الخدمات
-docker-compose up -d
-
-# 4. التحقق من الخدمات
-docker-compose ps
-
-# 5. الوصول إلى:
-# - واجهة الويب: http://localhost
-# - API docs: http://localhost:8000/docs
-# - Grafana: http://localhost:3000 (admin/admin)
-# - Prometheus: http://localhost:9090
-
-# 6. مشاهدة السجلات
-docker-compose logs -f auto_trader
-docker-compose logs -f sentiment_agent
-# 1. إضافة المتغيرات الجديدة إلى .env
-echo """
-# Stripe API Keys (للدعم)
-STRIPE_PUBLIC_KEY=pk_test_xxx
-STRIPE_SECRET_KEY=sk_test_xxx
-STRIPE_WEBHOOK_SECRET=whsec_xxx
-
-# Tax Settings
-TAX_RATE=0.225
-TAX_AUTHORITY_ID=123456
-
-# Admin Settings
-ADMIN_EMAIL=admin@trading-platform.com
-ADMIN_PASSWORD_HASH=xxx
-""" >> .env
-
-# 2. إعادة بناء وتشغيل جميع الخدمات
-docker-compose down
-docker-compose build --no-cache
-docker-compose up -d
-
-# 3. إنشاء مستخدم مسؤول
-docker-compose exec backend python scripts/create_admin.py
-
-# 4. التحقق من جميع الخدمات
-docker-compose ps
-docker-compose logs -f --tail=50
-
-# 5. فتح لوحة التحكم
-echo """
-✅ المنصة جاهزة للتشغيل!
-
-🔗 الروابط:
-- تطبيق الويب: http://localhost
-- لوحة تحكم المسؤول: http://localhost/admin
-- توثيق API: http://localhost:8000/docs
-- Grafana: http://localhost:3000 (admin/admin)
-- Prometheus: http://localhost:9090
-
-📱 تطبيق الموبايل:
-- flutter run lib/main.dart
-
-🤖 بوت التليجرام:
-- ابحث عن @TradingPlatformBot
-
-💰 نظام الاشتراكات:
-- مجاني: 0 ج.م
-- أساسي: 99 ج.م/شهر
-- احترافي: 299 ج.م/شهر
-- بريميوم: 599 ج.م/شهر
-- مؤسسات: 1499 ج.م/شهر
-"""
-# التحقق من السجلات
-docker-compose logs
-
-# إعادة تشغيل Docker
-sudo systemctl restart docker
-# فحص صحة قاعدة البيانات
-docker-compose exec timescaledb pg_isready
-
-# إعادة تعيين كلمة المرور
-docker-compose exec timescaledb psql -U postgres -c "ALTER USER trader WITH PASSWORD 'new_password';"
-# زيادة عدد العمال
-# تعديل backend/Dockerfile.prod
---workers 8
-
-# إعادة البناء
-docker-compose build backend
-docker-compose up -d backend
-# سحب آخر التغييرات
-git pull
-
-# إيقاف الخدمات
-make down
-
-# إعادة البناء والتشغيل
-make prod
-
-# تحديث قاعدة البيانات (إن وجد)
-docker-compose exec backend python scripts/migrate.py
-make help      # عرض جميع الأوامر
-make dev       # تشغيل بيئة التطوير
-make prod      # تشغيل بيئة الإنتاج  
-make logs      # عرض السجلات
-make backup    # عمل نسخة احتياطية
-make test      # تشغيل الاختبارات
-make clean     # تنظيف الملفات
-cd mobile
-flutter pub get
-flutter run
-# تشغيل المنصة
-git clone <repository>
-cd trading_platform
-make prod
+# تشغيل
+main
