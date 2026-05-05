@@ -3,7 +3,6 @@
 المسار: /trading_platform/frontend/App.jsx
 الوظيفة: واجهة المستخدم الرئيسية - لوحة التحكم
 */
-
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import {
