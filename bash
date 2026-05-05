@@ -217,3 +217,17 @@ make prod
 
 # تحديث قاعدة البيانات (إن وجد)
 docker-compose exec backend python scripts/migrate.py
+make help      # عرض جميع الأوامر
+make dev       # تشغيل بيئة التطوير
+make prod      # تشغيل بيئة الإنتاج  
+make logs      # عرض السجلات
+make backup    # عمل نسخة احتياطية
+make test      # تشغيل الاختبارات
+make clean     # تنظيف الملفات
+cd mobile
+flutter pub get
+flutter run
+# تشغيل المنصة
+git clone <repository>
+cd trading_platform
+make prod
