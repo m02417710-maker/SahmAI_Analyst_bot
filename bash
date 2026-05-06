@@ -191,3 +191,14 @@ main
 
 chmod +x deploy_complete.sh
 ./deploy_complete.sh
+# 1. ارفع الملفات إلى GitHub
+git add .github/ scripts/ utils/
+git commit -m "🤖 إضافة نظام الأتمتة الكامل"
+git push origin main
+
+# 2. أضف Secrets في GitHub:
+#    - GEMINI_API_KEY
+#    - TELEGRAM_TOKEN
+#    - TELEGRAM_CHAT_ID
+
+# 3. شاهد النظام يعمل تلقائياً!
