@@ -1,0 +1,25 @@
+# ملف: .github/dependabot.yml
+# التحديث التلقائي للمكتبات
+
+version: 2
+updates:
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "sunday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "auto-update"
+    commit-message:
+      prefix: "📦"
+      include: "scope"
+      
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "ci"
+      - "auto-update"
