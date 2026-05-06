@@ -1,0 +1,23 @@
+# ملف: .github/workflows/blank.yml
+# المسار: /sahmai_analyst_bot/.github/workflows/blank.yml
+# الوظيفة: ملف workflow فارغ (معطل مؤقتاً)
+
+name: Blank Workflow
+
+on:
+  # تم تعطيل جميع المشغلات مؤقتاً
+  # schedule:
+  #   - cron: '0 0 * * *'
+  # push:
+  #   branches: [ main, master ]
+  # workflow_dispatch:
+
+jobs:
+  # جميع الوظائف معطلة مؤقتاً
+  placeholder:
+    runs-on: ubuntu-latest
+    if: false  # تعطيل هذه الوظيفة
+    
+    steps:
+      - name: Placeholder Step
+        run: echo "This workflow is disabled. Enable by changing 'if: false' to 'if: true'"
