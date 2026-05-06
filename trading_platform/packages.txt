@@ -1,0 +1,8 @@
+# ملف: packages.txt
+# المسار: /trading_platform/packages.txt
+# تثبيت الاعتماديات على مستوى النظام
+
+gcc
+g++
+make
+python3-dev
