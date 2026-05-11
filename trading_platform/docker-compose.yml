@@ -1,184 +1,148 @@
-
-### 2️⃣5️⃣ **ملف: `docker-compose.full.yml` (النسخة الكاملة)**
-
-```yaml
-# ملف: docker-compose.full.yml
-# المسار: /trading_platform/docker-compose.full.yml
-# الوظيفة: التشغيل الكامل لجميع خدمات المنصة
-
 version: '3.8'
 
 services:
-  # ====================== Core Services ======================
-  timescaledb:
-    image: timescale/timescaledb:latest-pg14
-    container_name: trading_timescaledb
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: stock-analyzer-db
     environment:
-      POSTGRES_DB: trading_db
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: stock_analyzer
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres123
     ports:
       - "5432:5432"
     volumes:
-      - timescale_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
-      - trading_network
-    restart: unless-stopped
+      - stock-analyzer-network
 
+  # Redis Cache
   redis:
     image: redis:7-alpine
-    container_name: trading_redis
-    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    container_name: stock-analyzer-redis
     ports:
       - "6379:6379"
     volumes:
       - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
-      - trading_network
-    restart: unless-stopped
+      - stock-analyzer-network
 
-  # ====================== Backend Services ======================
+  # Node.js Backend Server
   backend:
     build:
-      context: ./backend
-      dockerfile: Dockerfile.prod
-    container_name: trading_backend
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: stock-analyzer-backend
     environment:
-      - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@timescaledb:5432/trading_db
-      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379
-      - GEMINI_API_KEY=${GEMINI_API_KEY}
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+      NODE_ENV: development
+      DATABASE_URL: postgresql://postgres:postgres123@postgres:5432/stock_analyzer
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: your_jwt_secret_key_here_change_in_production
+      PORT: 5000
+      CORS_ORIGIN: http://localhost:3000
+      API_RATE_LIMIT: 100
+      LOG_LEVEL: debug
     ports:
-      - "8000:8000"
+      - "5000:5000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     volumes:
-      - ./logs:/app/logs
-      - ./models:/app/models
-    depends_on:
-      - timescaledb
-      - redis
+      - ./server:/app
+      - /app/node_modules
+    command: npm run dev
     networks:
-      - trading_network
+      - stock-analyzer-network
     restart: unless-stopped
 
-  # ====================== AI Workers ======================
-  ai_worker:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile.worker
-    container_name: trading_ai_worker
-    environment:
-      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379
-      - GEMINI_API_KEY=${GEMINI_API_KEY}
-    volumes:
-      - ./models:/app/models
-    depends_on:
-      - redis
-      - backend
-    networks:
-      - trading_network
-    restart: unless-stopped
-    command: python workers/ai_worker.py
-
-  # ====================== WebSocket Server ======================
-  websocket:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile.websocket
-    container_name: trading_websocket
-    environment:
-      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379
-    ports:
-      - "8001:8001"
-    depends_on:
-      - redis
-      - backend
-    networks:
-      - trading_network
-    restart: unless-stopped
-
-  # ====================== Telegram Bot ======================
-  telegram_bot:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile.bot
-    container_name: trading_telegram_bot
-    environment:
-      - TELEGRAM_TOKEN=${TELEGRAM_TOKEN}
-      - API_URL=http://backend:8000
-    depends_on:
-      - backend
-    networks:
-      - trading_network
-    restart: unless-stopped
-
-  # ====================== Frontend ======================
+  # React Frontend
   frontend:
     build:
-      context: ./frontend
+      context: ./client
       dockerfile: Dockerfile
-    container_name: trading_frontend
+    container_name: stock-analyzer-frontend
+    environment:
+      REACT_APP_API_URL: http://localhost:5000/api
+      REACT_APP_WS_URL: ws://localhost:5000
     ports:
       - "3000:3000"
     depends_on:
       - backend
-    networks:
-      - trading_network
-    restart: unless-stopped
-
-  # ====================== Monitoring ======================
-  prometheus:
-    image: prom/prometheus:latest
-    container_name: trading_prometheus
     volumes:
-      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml
-      - prometheus_data:/prometheus
-    ports:
-      - "9090:9090"
+      - ./client:/app
+      - /app/node_modules
+    command: npm start
     networks:
-      - trading_network
+      - stock-analyzer-network
     restart: unless-stopped
 
-  grafana:
-    image: grafana/grafana:latest
-    container_name: trading_grafana
-    environment:
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
-    volumes:
-      - grafana_data:/var/lib/grafana
-    ports:
-      - "3000:3000"
-    depends_on:
-      - prometheus
-    networks:
-      - trading_network
-    restart: unless-stopped
-
-  # ====================== Load Balancer ======================
+  # Nginx Reverse Proxy
   nginx:
     image: nginx:alpine
-    container_name: trading_nginx
+    container_name: stock-analyzer-nginx
     ports:
       - "80:80"
       - "443:443"
     volumes:
-      - ./frontend/dist:/usr/share/nginx/html
-      - ./config/nginx.prod.conf:/etc/nginx/nginx.conf
-      - ./ssl:/etc/nginx/ssl
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+      - ./static:/usr/share/nginx/html:ro
     depends_on:
-      - backend
       - frontend
-      - websocket
+      - backend
     networks:
-      - trading_network
+      - stock-analyzer-network
     restart: unless-stopped
 
-networks:
-  trading_network:
-    driver: bridge
+  # pgAdmin - Database Management (Optional)
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: stock-analyzer-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@example.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+    networks:
+      - stock-analyzer-network
+    restart: unless-stopped
+
+  # Redis Commander - Redis Management (Optional)
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: stock-analyzer-redis-commander
+    environment:
+      REDIS_HOSTS: local:redis:6379
+    ports:
+      - "8081:8081"
+    depends_on:
+      - redis
+    networks:
+      - stock-analyzer-network
+    restart: unless-stopped
 
 volumes:
-  timescale_data:
+  postgres_data:
+    driver: local
   redis_data:
-  prometheus_data:
-  grafana_data:
+    driver: local
+
+networks:
+  stock-analyzer-network:
+    driver: bridge
